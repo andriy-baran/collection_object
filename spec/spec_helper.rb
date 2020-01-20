@@ -1,5 +1,6 @@
-require "bundler/setup"
-require "collection_object"
+require 'bundler/setup'
+require 'collection_object'
+require 'pry'
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
