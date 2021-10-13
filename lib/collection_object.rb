@@ -1,40 +1,40 @@
 require "collection_object/version"
 
 module CollectionObject
+  def self.array_methods
+    [].public_methods - Object.new.public_methods
+  end
+
   def self.[](members)
     mod = Module.new do
-      class << self
-        attr_accessor :co_members
+      define_singleton_method(:included) do |receiver|
+        receiver.send(:attr_reader, members)
+      end
 
-        def array_methods
-          [].public_methods - Enumerable.public_instance_methods - Object.new.public_methods
+      define_singleton_method(:extended) do |receiver|
+        receiver.send(:include, self)
+      end
+
+      CollectionObject.array_methods.each do |array_method|
+        define_method(array_method) do |*params, &block|
+          res = send(members).public_send(array_method, *params, &block)
+          res.is_a?(Array) ? self.class.new(*res) : res
         end
       end
 
-    end
-    mod.co_members = members
-    mod.module_eval do
       define_method(:initialize) do |*args, &block|
-        instance_variable_set(:"@#{mod.co_members}", [])
+        instance_variable_set(:"@#{members}", args)
       end
 
-      define_method(:each) do |*args, &block|
-        return to_enum(:each) if block.nil?
-
-        send(co_members).each(*args, &block)
-      end
-
-      def self.included(receiver)
-        receiver.send(:include, Enumerable)
-        receiver.extend(Forwardable)
-        receiver.send(:attr_reader, co_members)
-        receiver.def_delegators co_members, *array_methods
-      end
-
-      def self.extended(receiver)
-        receiver.send(:include, self)
+      define_method(:query) do |commands|
+        collection = self
+        commands.each do |method_name, attrs|
+          collection = collection.public_send(method_name) do |member|
+            member.public_send(*attrs)
+          end
+        end
+        collection
       end
     end
-    mod
   end
 end
